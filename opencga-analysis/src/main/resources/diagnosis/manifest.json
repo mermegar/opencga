@@ -1,0 +1,39 @@
+{
+  "author" : null,
+  "version" : "0.1.0",
+  "id" : "diagnosis",
+  "name" : "My super diagnosis",
+  "description" : "",
+  "website" : "",
+  "publication" : "",
+  "icon" : null,
+  "globalParams" : [ ],
+  "executions" : [ {
+    "id" : "default",
+    "name" : "default",
+    "executable" : "",
+    "outputParam" : "outdir",
+    "testCmd" : null,
+    "result" : null,
+    "inputParams" : [ {
+      "name" : "panel"
+    } ],
+    "inputParamsFromTxt" : [ ],
+    "validParams" : [ {
+      "name" : "outdir",
+      "description" : "",
+      "required" : true
+    }, {
+      "name" : "samples",
+      "description" : "",
+      "required" : true
+    }, {
+      "name" : "panel",
+      "description" : "",
+      "required" : true
+    } ],
+    "configAttr" : [ ]
+  } ],
+  "examples" : null,
+  "acl" : null
+}
