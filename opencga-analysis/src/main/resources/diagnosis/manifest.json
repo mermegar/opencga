@@ -15,9 +15,7 @@
     "outputParam" : "outdir",
     "testCmd" : null,
     "result" : null,
-    "inputParams" : [ {
-      "name" : "panel"
-    } ],
+    "inputParams" : [ ],
     "inputParamsFromTxt" : [ ],
     "validParams" : [ {
       "name" : "outdir",

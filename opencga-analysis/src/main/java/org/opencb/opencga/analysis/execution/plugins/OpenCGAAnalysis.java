@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import org.opencb.cellbase.core.client.CellBaseClient;
 import org.opencb.datastore.core.ObjectMap;
 import org.opencb.opencga.analysis.beans.Analysis;
 import org.opencb.opencga.analysis.storage.AnalysisFileIndexer;
@@ -13,12 +14,15 @@ import org.opencb.opencga.catalog.models.DataStore;
 import org.opencb.opencga.catalog.models.File;
 import org.opencb.opencga.storage.core.StorageManagerFactory;
 import org.opencb.opencga.storage.core.alignment.adaptors.AlignmentDBAdaptor;
+import org.opencb.opencga.storage.core.config.CellBaseConfiguration;
 import org.opencb.opencga.storage.core.exceptions.StorageManagerException;
 import org.opencb.opencga.storage.core.variant.adaptors.VariantDBAdaptor;
 import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 /**
  * Created on 26/11/15.
@@ -125,5 +129,12 @@ public abstract class OpenCGAAnalysis {
 
     protected final long getStudyId() {
         return studyId;
+    }
+
+    // TODO: Read species from Catalog
+    protected final CellBaseClient getCellBaseClient(String species) throws URISyntaxException {
+        CellBaseConfiguration cellBaseConfiguration = storageManagerFactory.getStorageConfiguration().getCellbase();
+        return new CellBaseClient(new URI(cellBaseConfiguration.getHosts().get(0)),
+                cellBaseConfiguration.getVersion(), species);
     }
 }
