@@ -28,7 +28,10 @@ import org.opencb.commons.datastore.core.QueryResult;
 import org.opencb.commons.io.DataWriter;
 import org.opencb.opencga.analysis.AnalysisExecutionException;
 import org.opencb.opencga.analysis.AnalysisOutputRecorder;
+import org.opencb.opencga.analysis.JobFactory;
+import org.opencb.opencga.analysis.ToolManager;
 import org.opencb.opencga.analysis.execution.executors.ExecutorManager;
+import org.opencb.opencga.analysis.execution.plugins.diagnosis.DiagnosisAnalysis;
 import org.opencb.opencga.analysis.storage.AnalysisFileIndexer;
 import org.opencb.opencga.analysis.storage.variant.VariantFetcher;
 import org.opencb.opencga.analysis.storage.variant.VariantStorage;
@@ -92,9 +95,6 @@ public class VariantCommandExecutor extends AnalysisStorageCommandExecutor {
         }
 
         switch (subCommandString) {
-            case "ibs":
-                ibs();
-                break;
             case "delete":
                 delete();
                 break;
@@ -112,6 +112,12 @@ public class VariantCommandExecutor extends AnalysisStorageCommandExecutor {
                 break;
             case "annotate":
                 annotate();
+                break;
+            case "diagnosis":
+                diagnosis();
+                break;
+            case "ibs":
+                ibs();
                 break;
             default:
                 logger.error("Subcommand not valid");
@@ -132,12 +138,6 @@ public class VariantCommandExecutor extends AnalysisStorageCommandExecutor {
         }
         return variantStorageManager;
     }
-
-
-    private void ibs() {
-        throw new UnsupportedOperationException();
-    }
-
 
     private void exportFrequencies() throws Exception {
 
@@ -739,6 +739,31 @@ public class VariantCommandExecutor extends AnalysisStorageCommandExecutor {
             variantAnnotationManager.loadAnnotation(annotationFile, new QueryOptions());
             logger.info("Finished annotation load {}ms", System.currentTimeMillis() - start);
         }
+    }
+
+    private void ibs() {
+        throw new UnsupportedOperationException();
+    }
+
+    private void diagnosis() throws IOException, AnalysisExecutionException, CatalogException {
+        AnalysisCliOptionsParser.DiagnosisVariantCommandOptions cliOptions = variantCommandOptions.diagnosisVariantCommandOptions;
+
+        ToolManager toolManager = new ToolManager(DiagnosisAnalysis.IDENTIFIER, "default");
+        System.out.println(new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(toolManager.getAnalysis()));
+
+        JobFactory jobFactory = new JobFactory(catalogManager);
+
+        HashMap<String, List<String>> params = new HashMap<>();
+        params.put(DiagnosisAnalysis.PARAM_SAMPLES, Arrays.asList(cliOptions.samples.split(",")));
+        params.put(DiagnosisAnalysis.PARAM_PANEL, Arrays.asList(cliOptions.panel.split(",")));
+
+        long outdirId = catalogManager.getFileId(cliOptions.outdir);
+        long studyId = catalogManager.getStudyIdByFileId(outdirId);
+        File outDir = catalogManager.getFile(outdirId, sessionId).first();
+
+        jobFactory.createAndExecuteJob(toolManager,
+                params, studyId, "diagnosis", "Diagnosis", outDir, Collections.emptyList(), sessionId);
+
     }
 
 }

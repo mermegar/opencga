@@ -74,6 +74,7 @@ public class AnalysisCliOptionsParser {
         variantSubCommands.addCommand("annotate", variantCommandOptions.annotateVariantCommandOptions);
         variantSubCommands.addCommand("query", variantCommandOptions.queryVariantCommandOptions);
         variantSubCommands.addCommand("export-frequencies", variantCommandOptions.exportVariantStatsCommandOptions);
+        variantSubCommands.addCommand("diagnosis", variantCommandOptions.diagnosisVariantCommandOptions);
         variantSubCommands.addCommand("ibs", variantCommandOptions.ibsVariantCommandOptions);
 
         alignmentCommandOptions = new AlignmentCommandOptions();
@@ -213,6 +214,7 @@ public class AnalysisCliOptionsParser {
         final AnnotateVariantCommandOptions annotateVariantCommandOptions;
         final QueryVariantCommandOptions queryVariantCommandOptions;
         final ExportVariantStatsCommandOptions exportVariantStatsCommandOptions;
+        final DiagnosisVariantCommandOptions diagnosisVariantCommandOptions;
         final IbsVariantCommandOptions ibsVariantCommandOptions;
         final DeleteVariantCommandOptions deleteVariantCommandOptions;
 
@@ -224,6 +226,7 @@ public class AnalysisCliOptionsParser {
             this.annotateVariantCommandOptions = new AnnotateVariantCommandOptions();
             this.queryVariantCommandOptions = new QueryVariantCommandOptions();
             this.exportVariantStatsCommandOptions = new ExportVariantStatsCommandOptions();
+            this.diagnosisVariantCommandOptions = new DiagnosisVariantCommandOptions();
             this.ibsVariantCommandOptions = new IbsVariantCommandOptions();
             this.deleteVariantCommandOptions = new DeleteVariantCommandOptions();
         }
@@ -684,6 +687,27 @@ public class AnalysisCliOptionsParser {
 
         @Parameter(names = {"-s", "--study"}, description = "A comma separated list of studies to be returned", required = false)
         public String studies;
+
+    }
+
+    @Parameters(commandNames = {"diagnosis"}, commandDescription = "[PENDING] ")
+    public class DiagnosisVariantCommandOptions extends CatalogDatabaseCommandOptions {
+
+        @ParametersDelegate
+        public AnalysisCommonCommandOptions commonOptions = AnalysisCliOptionsParser.this.commonCommandOptions;
+
+        @Parameter(names = {"--panel"}, description = "A comma separated list of panels", required = true)
+        public String panel;
+
+        @Parameter(names = {"--samples"}, description = "", required = true)
+        public String samples;
+
+        @Parameter(names = {"--outdir"}, description = "Output directry id", required = true)
+        public String outdir;
+
+//        @Parameter(names = {"--cohort"}, description = "A comma separated list of panels", required = true)
+//        public String panels;
+
 
     }
 
