@@ -121,6 +121,9 @@ public class CatalogMongoStudyDBAdaptor extends CatalogMongoDBAdaptor implements
         List<Dataset> datasets = study.getDatasets();
         study.setDatasets(Collections.emptyList());
 
+        List<DiseasePanel> panels = study.getPanels();
+        study.setPanels(Collections.emptyList());
+
         //Create DBObject
         Document studyObject = getMongoDBDocument(study, "Study");
         studyObject.put(PRIVATE_ID, newId);
@@ -166,6 +169,14 @@ public class CatalogMongoStudyDBAdaptor extends CatalogMongoDBAdaptor implements
                     .getErrorMsg();
             if (fileErrorMsg != null && !fileErrorMsg.isEmpty()) {
                 errorMsg += dataset.getName() + ":" + fileErrorMsg + ", ";
+            }
+        }
+
+        for (DiseasePanel diseasePanel : panels) {
+            String fileErrorMsg = dbAdaptorFactory.getCatalogPanelDBAdaptor().createPanel(study.getId(), diseasePanel, options)
+                    .getErrorMsg();
+            if (fileErrorMsg != null && !fileErrorMsg.isEmpty()) {
+                errorMsg += diseasePanel.getName() + ":" + fileErrorMsg + ", ";
             }
         }
 
@@ -500,7 +511,8 @@ public class CatalogMongoStudyDBAdaptor extends CatalogMongoDBAdaptor implements
     }
 
     @Override
-    public QueryResult<StudyAcl> setStudyAcl(long studyId, String roleId, List<String> members) throws CatalogDBException {
+    public QueryResult<StudyAcl> setStudyAcl(long studyId, String roleId, List<String> members, boolean override)
+            throws CatalogDBException {
         long startTime = startQuery();
 
         checkStudyId(studyId);
@@ -548,7 +560,7 @@ public class CatalogMongoStudyDBAdaptor extends CatalogMongoDBAdaptor implements
 
         // Check if the members of the new acl already have some permissions set
         QueryResult<StudyAcl> studyAcls = getStudyAcl(studyId, null, membersAcl);
-        if (studyAcls.getNumResults() > 0) {
+        if (studyAcls.getNumResults() > 0 && override) {
             Set<String> usersSet = new HashSet<>(membersAcl.size());
             usersSet.addAll(membersAcl.stream().collect(Collectors.toList()));
 
@@ -564,6 +576,9 @@ public class CatalogMongoStudyDBAdaptor extends CatalogMongoDBAdaptor implements
 
             // Now we remove the old permissions set for the users that already existed so the permissions are overriden by the new ones.
             unsetStudyAcl(studyId, usersToOverride);
+        } else if (studyAcls.getNumResults() > 0 && !override) {
+            throw new CatalogDBException("setStudyAcl: " + studyAcls.getNumResults() + " of the members already had an Acl set. If you "
+                    + "still want to set the Acls for them and remove the old one, please use the override parameter.");
         }
 
         // Check if the permissions found on acl already exist on cohort id
@@ -593,6 +608,7 @@ public class CatalogMongoStudyDBAdaptor extends CatalogMongoDBAdaptor implements
         dbAdaptorFactory.getCatalogDatasetDBAdaptor().unsetDatasetAclsInStudy(studyId, members);
         dbAdaptorFactory.getCatalogIndividualDBAdaptor().unsetIndividualAclsInStudy(studyId, members);
         dbAdaptorFactory.getCatalogCohortDBAdaptor().unsetCohortAclsInStudy(studyId, members);
+        dbAdaptorFactory.getCatalogPanelDBAdaptor().unsetPanelAclsInStudy(studyId, members);
 
         // Remove the permissions the members might have had
         for (String member : members) {
@@ -1130,7 +1146,7 @@ public class CatalogMongoStudyDBAdaptor extends CatalogMongoDBAdaptor implements
 
         if (parameters.containsKey(QueryParams.STATUS_STATUS.key())) {
             studyParameters.put(QueryParams.STATUS_STATUS.key(), parameters.get(QueryParams.STATUS_STATUS.key()));
-            studyParameters.put(QueryParams.STATUS_DATE.key(), TimeUtils.getTimeMillis());
+            studyParameters.put(QueryParams.STATUS_DATE.key(), TimeUtils.getTime());
         }
 
         if (!studyParameters.isEmpty()) {
@@ -1198,7 +1214,11 @@ public class CatalogMongoStudyDBAdaptor extends CatalogMongoDBAdaptor implements
         return endQuery("Delete study", startTime, get(query, null));
     }
 
-    private QueryResult<Study> setStatus(long studyId, String status) throws CatalogDBException {
+    QueryResult<Long> setStatus(Query query, String status) throws CatalogDBException {
+        return update(query, new ObjectMap(QueryParams.STATUS_STATUS.key(), status));
+    }
+
+    QueryResult<Study> setStatus(long studyId, String status) throws CatalogDBException {
         return update(studyId, new ObjectMap(QueryParams.STATUS_STATUS.key(), status));
     }
 
@@ -1385,8 +1405,29 @@ public class CatalogMongoStudyDBAdaptor extends CatalogMongoDBAdaptor implements
     }
 
     @Override
-    public QueryResult<Long> restore(Query query) throws CatalogDBException {
-        return null;
+    public QueryResult<Long> restore(Query query, QueryOptions queryOptions) throws CatalogDBException {
+        long startTime = startQuery();
+        query.put(QueryParams.STATUS_STATUS.key(), Status.DELETED);
+        return endQuery("Restore studies", startTime, setStatus(query, Status.READY));
+    }
+
+    @Override
+    public QueryResult<Study> restore(long id, QueryOptions queryOptions) throws CatalogDBException {
+        long startTime = startQuery();
+
+        checkStudyId(id);
+        // Check if the cohort is active
+        Query query = new Query(QueryParams.ID.key(), id)
+                .append(QueryParams.STATUS_STATUS.key(), Status.DELETED);
+        if (count(query).first() == 0) {
+            throw new CatalogDBException("The study {" + id + "} is not deleted");
+        }
+
+        // Change the status of the cohort to deleted
+        setStatus(id, Status.READY);
+        query = new Query(QueryParams.ID.key(), id);
+
+        return endQuery("Restore study", startTime, get(query, null));
     }
 
     public QueryResult<Study> remove(int studyId) throws CatalogDBException {

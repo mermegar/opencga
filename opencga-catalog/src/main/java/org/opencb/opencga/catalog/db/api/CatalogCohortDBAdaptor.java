@@ -146,9 +146,9 @@ public interface CatalogCohortDBAdaptor extends CatalogDBAdaptor<Cohort> {
 
     QueryResult<CohortAcl> getCohortAcl(long cohortId, List<String> members) throws CatalogDBException;
 
-    QueryResult<CohortAcl> setCohortAcl(long cohortId, CohortAcl acl) throws CatalogDBException;
+    QueryResult<CohortAcl> setCohortAcl(long cohortId, CohortAcl acl, boolean override) throws CatalogDBException;
 
-    void unsetCohortAcl(long cohortId, List<String> members) throws CatalogDBException;
+    void unsetCohortAcl(long cohortId, List<String> members, List<String> permissions) throws CatalogDBException;
 
     void unsetCohortAclsInStudy(long studyId, List<String> members) throws CatalogDBException;
 

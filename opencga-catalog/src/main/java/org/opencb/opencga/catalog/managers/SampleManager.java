@@ -232,7 +232,9 @@ public class SampleManager extends AbstractManager implements ISampleManager {
 
         options = ParamUtils.defaultObject(options, QueryOptions::new);
         QueryResult<Sample> queryResult = sampleDBAdaptor.createSample(studyId, sample, options);
-        auditManager.recordCreation(AuditRecord.Resource.sample, queryResult.first().getId(), userId, queryResult.first(), null, null);
+//        auditManager.recordCreation(AuditRecord.Resource.sample, queryResult.first().getId(), userId, queryResult.first(), null, null);
+        auditManager.recordAction(AuditRecord.Resource.sample, AuditRecord.Action.create, AuditRecord.Magnitude.low,
+                queryResult.first().getId(), userId, null, queryResult.first(), null, null);
         return queryResult;
     }
 
@@ -563,8 +565,10 @@ public class SampleManager extends AbstractManager implements ISampleManager {
         authorizationManager.checkStudyPermission(studyId, userId, StudyAcl.StudyPermissions.CREATE_COHORTS);
         Cohort cohort = new Cohort(name, type, TimeUtils.getTime(), description, sampleIds, attributes);
         QueryResult<Cohort> queryResult = cohortDBAdaptor.createCohort(studyId, cohort, null);
-        auditManager.recordCreation(AuditRecord.Resource.cohort, queryResult.first().getId(), userId, queryResult.first(), null, new
-                ObjectMap());
+//        auditManager.recordCreation(AuditRecord.Resource.cohort, queryResult.first().getId(), userId, queryResult.first(), null, new
+//                ObjectMap());
+        auditManager.recordAction(AuditRecord.Resource.cohort, AuditRecord.Action.create, AuditRecord.Magnitude.low,
+                queryResult.first().getId(), userId, null, queryResult.first(), null, null);
         return queryResult;
     }
 
@@ -809,6 +813,30 @@ public class SampleManager extends AbstractManager implements ISampleManager {
         cohortAclQueryResult.setResult(cohortAclList);
 
         return cohortAclQueryResult;
+    }
+
+    @Override
+    public QueryResult cohortGroupBy(long studyId, Query query, List<String> fields, QueryOptions options, String sessionId)
+            throws CatalogException {
+        query = ParamUtils.defaultObject(query, Query::new);
+        options = ParamUtils.defaultObject(options, QueryOptions::new);
+        ParamUtils.checkObj(fields, "fields");
+        ParamUtils.checkObj(studyId, "studyId");
+        ParamUtils.checkObj(sessionId, "sessionId");
+
+        String userId = userDBAdaptor.getUserIdBySessionId(sessionId);
+        authorizationManager.checkStudyPermission(studyId, userId, StudyAcl.StudyPermissions.VIEW_COHORTS);
+
+        // TODO: In next release, we will have to check the count parameter from the queryOptions object.
+        boolean count = true;
+//        query.append(CatalogFileDBAdaptor.QueryParams.STUDY_ID.key(), studyId);
+        QueryResult queryResult = null;
+        if (count) {
+            // We do not need to check for permissions when we show the count of files
+            queryResult = cohortDBAdaptor.groupBy(query, fields, options);
+        }
+
+        return ParamUtils.defaultObject(queryResult, QueryResult::new);
     }
 
 }

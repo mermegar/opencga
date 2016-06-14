@@ -495,7 +495,7 @@ public class CatalogManagerTest extends GenericTest {
 
     @Test
     public void testCreateFileFromSharedStudy() throws CatalogException {
-        catalogManager.shareStudy(studyId, "user2", "analyst", sessionIdUser);
+        catalogManager.shareStudy(studyId, "user2", "analyst", false, sessionIdUser);
         catalogManager.createFile(studyId, File.Format.UNKNOWN, File.Bioformat.NONE, "data/test/folder/file.txt", "My description", true,
                 -1, sessionIdUser2);
         assertEquals(1, catalogManager.searchFile(studyId, new Query(CatalogFileDBAdaptor.QueryParams.PATH.key(),
@@ -525,6 +525,17 @@ public class CatalogManagerTest extends GenericTest {
 
         URI uri = catalogManager.getFileUri(folder);
         assertTrue(catalogManager.getCatalogIOManagerFactory().get(uri).exists(uri));
+
+        folder = catalogManager.createFolder(studyId, Paths.get("WOLOLO"), true, null, sessionIdUser2).first();
+
+        Path myStudy = Files.createDirectory(catalogManagerResource.getOpencgaHome().resolve("myStudy"));
+        long id = catalogManager.createStudy(projectId, "name", "alias", Study.Type.CASE_CONTROL, "", "",
+                null, null, null, myStudy.toUri(), null, null, null, null, sessionIdUser2).first().getId();
+        System.out.println("studyId = " + id);
+        folder = catalogManager.createFolder(id, Paths.get("WOLOLO"), true, null, sessionIdUser2).first();
+        System.out.println("folder = " + folder);
+        System.out.println(catalogManager.getFileUri(folder));
+
     }
 
     @Test
@@ -685,6 +696,18 @@ public class CatalogManagerTest extends GenericTest {
         assertTrue(paths.contains("Data/nested2/"));
         assertTrue(paths.contains("Data/nested2/folder/"));
         assertTrue(paths.contains("Data/nested2/folder/file2.txt"));
+    }
+
+    @Test
+    public void getFileIdByString() throws CatalogException {
+        catalogManager.shareStudy(studyId, "user2", "analyst", false, sessionIdUser);
+        File file = catalogManager.createFile(studyId, File.Format.UNKNOWN, File.Bioformat.NONE, "data/test/folder/file.txt",
+                "My description", true, -1, sessionIdUser2).first();
+        long fileId = catalogManager.getFileId(file.getPath(), sessionIdUser);
+        assertEquals(file.getId(), fileId);
+
+        fileId = catalogManager.getFileId(Long.toString(file.getId()), sessionIdUser);
+        assertEquals(file.getId(), fileId);
     }
 
     @Test
@@ -1125,6 +1148,13 @@ public class CatalogManagerTest extends GenericTest {
                 assertTrue("File uri: " + fileUri + " should exist", ioManager.exists(fileUri));
             }
         }
+    }
+
+    @Test
+    public void getAllFilesInFolder() throws CatalogException {
+        long fileId = catalogManager.getFileId("user@1000G/phase1/data/test/folder/");
+        List<File> allFilesInFolder = catalogManager.getAllFilesInFolder(fileId, null, sessionIdUser).getResult();
+        assertEquals(3, allFilesInFolder.size());
     }
 
     private void deleteFolderAndCheck(long deletable) throws CatalogException, IOException {

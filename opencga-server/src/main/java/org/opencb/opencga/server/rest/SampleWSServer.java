@@ -19,8 +19,10 @@ package org.opencb.opencga.server.rest;
 import com.wordnik.swagger.annotations.Api;
 import com.wordnik.swagger.annotations.ApiOperation;
 import com.wordnik.swagger.annotations.ApiParam;
+import org.opencb.commons.datastore.core.Query;
 import org.opencb.commons.datastore.core.QueryOptions;
 import org.opencb.commons.datastore.core.QueryResult;
+import org.opencb.opencga.catalog.db.api.CatalogFileDBAdaptor;
 import org.opencb.opencga.catalog.db.api.CatalogSampleDBAdaptor;
 import org.opencb.opencga.catalog.models.*;
 import org.opencb.opencga.catalog.utils.CatalogSampleAnnotationsLoader;
@@ -33,6 +35,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -236,37 +239,65 @@ public class SampleWSServer extends OpenCGAWSServer {
 
     @GET
     @Path("/{sampleIds}/share")
-    @ApiOperation(value = "Update some sample attributes using GET method", position = 7)
+    @ApiOperation(value = "Share samples with other members", position = 7)
     public Response share(@PathParam(value = "sampleIds") String sampleIds,
-                          @ApiParam(value = "User you want to share the sample with. Accepts: '{userId}', '@{groupId}' or '*'", required = true) @DefaultValue("") @QueryParam("userIds") String userIds,
-                          @ApiParam(value = "Remove the previous AclEntry", required = false) @DefaultValue("false") @QueryParam("unshare") boolean unshare,
-                          @ApiParam(value = "Read permission", required = false) @DefaultValue("false") @QueryParam("read") boolean read,
-                          @ApiParam(value = "Write permission", required = false) @DefaultValue("false") @QueryParam("write") boolean write,
-                          @ApiParam(value = "Delete permission", required = false) @DefaultValue("false") @QueryParam("delete") boolean delete
-                          /*@ApiParam(value = "Execute permission", required = false) @DefaultValue("false") @QueryParam("execute") boolean execute*/) {
-
-        QueryResult queryResult;
+                          @ApiParam(value = "Comma separated list of members. Accepts: '{userId}', '@{groupId}' or '*'", required = true) @DefaultValue("") @QueryParam("members") String members,
+                          @ApiParam(value = "Comma separated list of sample permissions", required = false) @DefaultValue("") @QueryParam("permissions") String permissions,
+                          @ApiParam(value = "Boolean indicating whether to allow the change of of permissions in case any member already had any", required = true) @DefaultValue("false") @QueryParam("override") boolean override) {
         try {
-            if (unshare) {
-                queryResult = catalogManager.unshareSample(sampleIds, userIds, sessionId);
-            } else {
-                queryResult = catalogManager.shareSample(sampleIds, userIds, new AclEntry("", read, write, false, delete), sessionId);
-            }
-
-            return createOkResponse(queryResult);
+            return createOkResponse(catalogManager.shareSample(sampleIds, members, Arrays.asList(permissions.split(",")), override,
+                    sessionId));
         } catch (Exception e) {
             return createErrorResponse(e);
         }
+    }
 
+    @GET
+    @Path("/{sampleIds}/unshare")
+    @ApiOperation(value = "Remove the permissions for the list of members", position = 8)
+    public Response unshare(@PathParam(value = "sampleIds") String sampleIds,
+                            @ApiParam(value = "Comma separated list of members. Accepts: '{userId}', '@{groupId}' or '*'", required = true) @DefaultValue("") @QueryParam("members") String members,
+                            @ApiParam(value = "Comma separated list of sample permissions", required = false) @DefaultValue("") @QueryParam("permissions") String permissions) {
+        try {
+            return createOkResponse(catalogManager.unshareSample(sampleIds, members, permissions, sessionId));
+        } catch (Exception e) {
+            return createErrorResponse(e);
+        }
     }
 
     @GET
     @Path("/{sampleId}/delete")
-    @ApiOperation(value = "Delete a sample", position = 8)
+    @ApiOperation(value = "Delete a sample", position = 9)
     public Response delete(@ApiParam(value = "sampleId", required = true) @PathParam("sampleId") long sampleId) {
         try {
             QueryResult<Sample> queryResult = catalogManager.deleteSample(sampleId, queryOptions, sessionId);
             return createOkResponse(queryResult);
+        } catch (Exception e) {
+            return createErrorResponse(e);
+        }
+    }
+
+    @GET
+    @Path("/groupBy")
+    @ApiOperation(value = "Group samples by several fields", position = 10)
+    public Response groupBy(@ApiParam(value = "Comma separated list of fields by which to group by.", required = true) @DefaultValue("") @QueryParam("by") String by,
+                            @ApiParam(value = "studyId", required = true) @DefaultValue("") @QueryParam("studyId") String studyIdStr,
+                            @ApiParam(value = "Comma separated list of ids.") @QueryParam("id") String id,
+                            @ApiParam(value = "Comma separated list of names.") @QueryParam("name") String name,
+                            @ApiParam(value = "source") @QueryParam("source") String source,
+                            @ApiParam(value = "individualId") @QueryParam("individualId") String individualId,
+                            @ApiParam(value = "annotationSetId") @QueryParam("annotationSetId") String annotationSetId,
+                            @ApiParam(value = "variableSetId") @QueryParam("variableSetId") String variableSetId,
+                            @ApiParam(value = "annotation") @QueryParam("annotation") String annotation) {
+        try {
+            Query query = new Query();
+            QueryOptions qOptions = new QueryOptions();
+            parseQueryParams(params, CatalogFileDBAdaptor.QueryParams::getParam, query, qOptions);
+
+            logger.debug("query = " + query.toJson());
+            logger.debug("queryOptions = " + qOptions.toJson());
+            QueryResult result = catalogManager.sampleGroupBy(query, qOptions, by, sessionId);
+            return createOkResponse(result);
         } catch (Exception e) {
             return createErrorResponse(e);
         }
